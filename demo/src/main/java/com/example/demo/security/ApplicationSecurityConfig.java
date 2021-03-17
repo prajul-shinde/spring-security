@@ -16,11 +16,14 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.concurrent.TimeUnit;
 
 import static com.example.demo.security.ApplicationUserRole.*;
 import static org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository.*;
 
-//form base to basic auth
+
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -36,7 +39,7 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
-                .csrf().disable() 
+                .csrf().disable()
                 .authorizeRequests()
                 .antMatchers("/","index","/css/*","/js/*").permitAll()
                 .antMatchers("/api/**").hasRole(STUDENT.name())
@@ -47,13 +50,27 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest()
                 .authenticated()
                 .and()
-                .httpBasic();
-//        basic authentication :- doesnt uses form provided by security
-//                             :-disadvantage cannot logout
-//                             :- select basic auth in postman and send user as username and generated password as
-//                                generated from console
+                .formLogin()
+               .loginPage("/login").permitAll()
+                .usernameParameter("username")
+                .passwordParameter("password")
+                .defaultSuccessUrl("/courses",true)
+                .and()
+                .rememberMe()
+                .rememberMeParameter("remember-me")
+                .tokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(21))
+                //defaults to 2 weeks
+                .key("somethingverysecured")
+                .and()
+                .logout()
+                .logoutUrl("./logout")
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout","GET"))
+                .clearAuthentication(true)
+                .invalidateHttpSession(true)
+                .deleteCookies("JSONSESSIONID","remember-me")
+                .logoutSuccessUrl("./login");
     }
-       //InMemoryUserDetailsManager for inMemory authentication
+
     @Override
     @Bean
     protected UserDetailsService userDetailsService() {
